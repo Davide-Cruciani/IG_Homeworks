@@ -6,12 +6,47 @@
 function GetModelViewProjection( projectionMatrix, translationX, translationY, translationZ, rotationX, rotationY )
 {
 	// [TO-DO] Modify the code below to form the transformation matrix.
+	
+	// Gli angoli sono invertiti perchè nonostante io abbia rivisto le formule delle matrici, 
+	// continuano a ruotare in verso opposto al movimento del cursore sullo schermo
+	var sX = Math.sin(-rotationX);
+	var cX = Math.cos(-rotationX);
+	var sY = Math.sin(-rotationY);
+	var cY = Math.cos(-rotationY);
+		
 	var trans = [
 		1, 0, 0, 0,
 		0, 1, 0, 0,
 		0, 0, 1, 0,
 		translationX, translationY, translationZ, 1
 	];
+	
+	var rX = [
+		1,0,0,0,
+		0,cX,-sX,0,
+		0,sX,cX,0,
+		0,0,0,1
+	];
+
+	var rY = [
+		cY,0,sY,0,
+		0,1,0,0,
+		-sY,0,cY,0,
+		0,0,0,1
+	];
+	
+	var rotation = MatrixMult(rY,rX);
+	trans = MatrixMult(trans, rotation);
+	
+	// Matrice di trasformazione ad oc 
+	// var trans = [
+	// 	cY, 0, sY, 0,
+	// 	sX*sY, cX, -cY*sX, 0,
+	// 	-cX*sY, sX, cX*cY, 0,
+	// 	translationX, translationY, translationZ, 1
+	// ];
+
+
 	var mvp = MatrixMult( projectionMatrix, trans );
 	return mvp;
 }
