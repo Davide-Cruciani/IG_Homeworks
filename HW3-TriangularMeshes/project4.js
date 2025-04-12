@@ -77,8 +77,18 @@ class MeshDrawer
 		`
 		var objectFS =`
 			precision mediump float;
+
+			uniform int vUseTexture;
+			varying vec2 vtexPos;
+
+
 			void main(){
-				gl_FragColor = vec4(1,gl_FragCoord.z*gl_FragCoord.z,0,1);
+				if(vUseTexture == 0){
+					gl_FragColor = vec4(1,gl_FragCoord.z*gl_FragCoord.z,0,1);
+				}
+				else{
+					gl_FragColor = vec4(0,gl_FragCoord.z*gl_FragCoord.z,1,1);
+				}
 			}
 		`
 		// [TO-DO] initializations
@@ -135,6 +145,9 @@ class MeshDrawer
 			0,0,0,1
 		];
 		gl.uniformMatrix4fv(swapMatrix, false, smat);
+
+		var useTexture = gl.getUniformLocation(prog, 'vUseTexture');
+		gl.uniform1i(useTexture, 1);
 
 	}
 	
@@ -243,6 +256,16 @@ class MeshDrawer
 	showTexture( show )
 	{
 		// [TO-DO] set the uniform parameter(s) of the fragment shader to specify if it should use the texture.
+		gl.useProgram(this.program);
+		var usingTexture = gl.getUniformLocation(this.program, 'vUseTexture');
+		if(usingTexture	=== -1){
+			console.error('vUseTexture not found');
+		}
+		if (show){
+			gl.uniform1i(usingTexture, 1);
+		}else{
+			gl.uniform1i(usingTexture, 0);
+		}
 	}
 	
 }
