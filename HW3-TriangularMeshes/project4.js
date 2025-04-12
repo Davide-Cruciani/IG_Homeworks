@@ -46,7 +46,6 @@ function GetModelViewProjection( projectionMatrix, translationX, translationY, t
 	// 	translationX, translationY, translationZ, 1
 	// ];
 
-
 	var mvp = MatrixMult( projectionMatrix, trans );
 	return mvp;
 }
@@ -54,12 +53,76 @@ function GetModelViewProjection( projectionMatrix, translationX, translationY, t
 
 // [TO-DO] Complete the implementation of the following class.
 
+
+// gl_FragColor = vcolor;
+
 class MeshDrawer
 {
 	// The constructor is a good place for taking care of the necessary initializations.
 	constructor()
 	{
+		var objectVS = `
+			attribute vec3 pos;
+			attribute vec2 texPos;
+
+			uniform mat4 trans;
+
+			void main(){
+				gl_Position = trans * vec4(pos,1);
+			}
+		`
+		var objectFS =`
+			precision mediump float;
+			void main(){
+				gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+			}
+		`
 		// [TO-DO] initializations
+		this.vertBuffer = gl.createBuffer();
+		this.texturePoss = gl.createBuffer();
+		const vs = gl.createShader(gl.VERTEX_SHADER);
+		gl.shaderSource(vs, objectVS);
+		gl.compileShader(vs);
+		if (! gl.getShaderParameter(vs, gl.COMPILE_STATUS)){
+			alert(gl.getShaderInfoLog(vs));
+			console.error("Vertex shader failed to link:", gl.getShaderInfoLog(vs));
+			gl.deleteShader(vs);
+			return;
+		}
+
+		const fs = gl.createShader(gl.FRAGMENT_SHADER);
+		gl.shaderSource(fs, objectFS);
+		gl.compileShader(fs);
+		if (! gl.getShaderParameter(fs, gl.COMPILE_STATUS)){
+			alert(gl.getShaderInfoLog(fs));
+			console.error("Fragment shader failed to link:", gl.getShaderInfoLog(fs));
+			gl.deleteShader(fs);
+			return;
+		}
+
+		var prog = gl.createProgram();
+		gl.attachShader(prog, vs);
+		gl.attachShader(prog, fs);
+		gl.linkProgram(prog);
+		if(! gl.getProgramParameter(prog, gl.LINK_STATUS)){
+			alert(gl.getProgramInfoLog(prog));
+			console.error("Program failed to link:", gl.getProgramInfoLog(prog));
+			gl.deleteProgram(prog);
+			return;
+		}
+
+		this.program = prog
+
+		var matrix = gl.getUniformLocation(prog, 'trans');
+		var identity = [
+			1,0,0,0,
+			0,1,0,0,
+			0,0,1,0,
+			0,0,0,1
+		];
+		gl.useProgram(prog);
+		gl.uniformMatrix4fv(matrix, false, identity);
+
 	}
 	
 	// This method is called every time the user opens an OBJ file.
@@ -75,6 +138,12 @@ class MeshDrawer
 	setMesh( vertPos, texCoords )
 	{
 		// [TO-DO] Update the contents of the vertex buffer objects.
+		var vertexesPosition = gl.getAttribLocation(this.program, 'pos');
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuffer);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertPos), gl.STATIC_DRAW);
+		gl.vertexAttribPointer(vertexesPosition, 3, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(vertexesPosition);
+
 		this.numTriangles = vertPos.length / 3;
 	}
 	
@@ -92,6 +161,18 @@ class MeshDrawer
 	draw( trans )
 	{
 		// [TO-DO] Complete the WebGL initializations before drawing
+		gl.useProgram(this.program);
+		gl.viewport(0, 0, canvas.width, canvas.height);
+		gl.clearColor(0.0, 0.0, 0.0, 1.0);
+		gl.clear(gl.COLOR_BUFFER_BIT);
+
+		var matrixRot = gl.getUniformLocation(this.program, 'trans');
+		gl.uniformMatrix4fv(matrixRot, false, trans);
+
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuffer);
+		var vertexesPosition = gl.getAttribLocation(this.program, 'pos');
+		gl.vertexAttribPointer(vertexesPosition, 3, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(vertexesPosition);
 
 		gl.drawArrays( gl.TRIANGLES, 0, this.numTriangles );
 	}
