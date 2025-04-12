@@ -66,15 +66,19 @@ class MeshDrawer
 			attribute vec2 texPos;
 
 			uniform mat4 trans;
+			uniform mat4 swap;
+
+			varying vec2 vtexPos;
 
 			void main(){
-				gl_Position = trans * vec4(pos,1);
+				vtexPos = texPos;
+				gl_Position =  trans*swap*vec4(pos,1);
 			}
 		`
 		var objectFS =`
 			precision mediump float;
 			void main(){
-				gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+				gl_FragColor = vec4(1,gl_FragCoord.z*gl_FragCoord.z,0,1);
 			}
 		`
 		// [TO-DO] initializations
@@ -123,6 +127,15 @@ class MeshDrawer
 		gl.useProgram(prog);
 		gl.uniformMatrix4fv(matrix, false, identity);
 
+		var swapMatrix = gl.getUniformLocation(prog, 'swap');
+		var smat = [
+			1,0,0,0,
+			0,1,0,0,
+			0,0,1,0,
+			0,0,0,1
+		];
+		gl.uniformMatrix4fv(swapMatrix, false, smat);
+
 	}
 	
 	// This method is called every time the user opens an OBJ file.
@@ -139,10 +152,22 @@ class MeshDrawer
 	{
 		// [TO-DO] Update the contents of the vertex buffer objects.
 		var vertexesPosition = gl.getAttribLocation(this.program, 'pos');
+		if(vertexesPosition ===-1){
+			console.error('vertexPosition not found');
+		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertPos), gl.STATIC_DRAW);
 		gl.vertexAttribPointer(vertexesPosition, 3, gl.FLOAT, false, 0, 0);
 		gl.enableVertexAttribArray(vertexesPosition);
+
+		var texturePosition = gl.getAttribLocation(this.program, 'texPos');
+		if(texturePosition ===-1){
+			console.error('texturePosition not found');
+		}
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.texturePoss);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
+		gl.vertexAttribPointer(texturePosition, 2, gl.FLOAT, false, 0,0);
+		gl.enableVertexAttribArray(texturePosition);
 
 		this.numTriangles = vertPos.length / 3;
 	}
@@ -152,7 +177,29 @@ class MeshDrawer
 	// The argument is a boolean that indicates if the checkbox is checked.
 	swapYZ( swap )
 	{
+		gl.useProgram(this.program);
 		// [TO-DO] Set the uniform parameter(s) of the vertex shader
+		var swapMatrix = gl.getUniformLocation(this.program, 'swap');
+		if(swapMatrix === -1){
+			console.error("Swap matrix not found");
+		}
+		if (!swap){
+			var smat = [
+				1,0,0,0,
+				0,1,0,0,
+				0,0,1,0,
+				0,0,0,1
+			];
+			gl.uniformMatrix4fv(swapMatrix, false, smat);
+		}else{
+			var smat = [
+				1,0,0,0,
+				0,0,1,0,
+				0,1,0,0,
+				0,0,0,1
+			];
+			gl.uniformMatrix4fv(swapMatrix, false, smat);
+		}
 	}
 	
 	// This method is called to draw the triangular mesh.
