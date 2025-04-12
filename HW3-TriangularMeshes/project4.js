@@ -54,8 +54,6 @@ function GetModelViewProjection( projectionMatrix, translationX, translationY, t
 // [TO-DO] Complete the implementation of the following class.
 
 
-// gl_FragColor = vcolor;
-
 class MeshDrawer
 {
 	// The constructor is a good place for taking care of the necessary initializations.
@@ -68,26 +66,28 @@ class MeshDrawer
 			uniform mat4 trans;
 			uniform mat4 swap;
 
-			varying vec2 vtexPos;
+			varying vec2 vTexPos;
 
 			void main(){
-				vtexPos = texPos;
+				vTexPos = texPos;
 				gl_Position =  trans*swap*vec4(pos,1);
 			}
 		`
 		var objectFS =`
 			precision mediump float;
 
-			uniform int vUseTexture;
-			varying vec2 vtexPos;
+			uniform int uUseTexture;
+			uniform sampler2D uTexture;
+
+			varying vec2 vTexPos;
 
 
 			void main(){
-				if(vUseTexture == 0){
+				if(uUseTexture == 0){
 					gl_FragColor = vec4(1,gl_FragCoord.z*gl_FragCoord.z,0,1);
 				}
 				else{
-					gl_FragColor = vec4(0,gl_FragCoord.z*gl_FragCoord.z,1,1);
+					gl_FragColor = texture2D(uTexture, vTexPos);
 				}
 			}
 		`
@@ -146,8 +146,11 @@ class MeshDrawer
 		];
 		gl.uniformMatrix4fv(swapMatrix, false, smat);
 
-		var useTexture = gl.getUniformLocation(prog, 'vUseTexture');
-		gl.uniform1i(useTexture, 1);
+		var useTexture = gl.getUniformLocation(prog, 'uUseTexture');
+		gl.uniform1i(useTexture, 0);
+
+		this.texture = gl.createTexture();
+
 
 	}
 	
@@ -167,6 +170,7 @@ class MeshDrawer
 		var vertexesPosition = gl.getAttribLocation(this.program, 'pos');
 		if(vertexesPosition ===-1){
 			console.error('vertexPosition not found');
+			return;
 		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuffer);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertPos), gl.STATIC_DRAW);
@@ -176,6 +180,7 @@ class MeshDrawer
 		var texturePosition = gl.getAttribLocation(this.program, 'texPos');
 		if(texturePosition ===-1){
 			console.error('texturePosition not found');
+			return;
 		}
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.texturePoss);
 		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STATIC_DRAW);
@@ -195,6 +200,7 @@ class MeshDrawer
 		var swapMatrix = gl.getUniformLocation(this.program, 'swap');
 		if(swapMatrix === -1){
 			console.error("Swap matrix not found");
+			return;
 		}
 		if (!swap){
 			var smat = [
@@ -241,13 +247,21 @@ class MeshDrawer
 	// The argument is an HTML IMG element containing the texture data.
 	setTexture( img )
 	{
+		gl.useProgram(this.program);
 		// [TO-DO] Bind the texture
-
+		gl.bindTexture(gl.TEXTURE_2D, this.texture);
 		// You can set the texture image data using the following command.
 		gl.texImage2D( gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img );
-
+		gl.generateMipmap(gl.TEXTURE_2D);
 		// [TO-DO] Now that we have a texture, it might be a good idea to set
 		// some uniform parameter(s) of the fragment shader, so that it uses the texture.
+		var uTexturePtr = gl.getUniformLocation(this.program, 'uTexture');
+		if(uTexturePtr === -1){
+			console.error('Texture location not found');
+			return;
+		}
+		gl.uniform1i(uTexturePtr, 0);
+		this.showTexture(true);
 	}
 	
 	// This method is called when the user changes the state of the
@@ -257,9 +271,10 @@ class MeshDrawer
 	{
 		// [TO-DO] set the uniform parameter(s) of the fragment shader to specify if it should use the texture.
 		gl.useProgram(this.program);
-		var usingTexture = gl.getUniformLocation(this.program, 'vUseTexture');
+		var usingTexture = gl.getUniformLocation(this.program, 'uUseTexture');
 		if(usingTexture	=== -1){
-			console.error('vUseTexture not found');
+			console.error('uUseTexture not found');
+			return;
 		}
 		if (show){
 			gl.uniform1i(usingTexture, 1);
