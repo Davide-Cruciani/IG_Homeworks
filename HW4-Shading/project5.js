@@ -32,11 +32,18 @@ function GetModelViewMatrix( translationX, translationY, translationZ, rotationX
 	];
 	
 	var rotation = MatrixMult(rY,rX);
-	trans = MatrixMult(trans, rotation);
-	var mvp = MatrixMult( projectionMatrix, trans );
-	return mvp;
+	var mv = MatrixMult(trans, rotation);
+	return mv;
 }
 
+async function getShader(path) {
+	var response = await fetch(path);
+	return response.text();
+}
+
+
+FRAGMENT_SHADER_PATH = "projectFS.frag";
+VERTEX_SHADER_PATH = 'projectVS.vert';
 
 // [TO-DO] Complete the implementation of the following class.
 
@@ -45,41 +52,12 @@ class MeshDrawer
 	// The constructor is a good place for taking care of the necessary initializations.
 	constructor()
 	{
-		var objectVS = `
-			attribute vec3 pos;
-			attribute vec2 texPos;
-
-			uniform mat4 trans;
-			uniform mat4 swap;
-
-			varying vec2 vTexPos;
-
-			void main(){
-				vTexPos = texPos;
-				gl_Position =  trans*swap*vec4(pos,1);
-			}
-		`
-		var objectFS =`
-			precision mediump float;
-
-			uniform int uUseTexture;
-			uniform sampler2D uTexture;
-
-			varying vec2 vTexPos;
-
-
-			void main(){
-				if(uUseTexture == 0){
-					gl_FragColor = vec4(1,gl_FragCoord.z*gl_FragCoord.z,0,1);
-				}
-				else{
-					gl_FragColor = texture2D(uTexture, vTexPos);
-				}
-			}
-		`
+		var objectVS = getShader(VERTEX_SHADER_PATH);
+		var objectFS = getShader(FRAGMENT_SHADER_PATH);
 		// [TO-DO] initializations
 		this.vertBuffer = gl.createBuffer();
 		this.texturePoss = gl.createBuffer();
+		this.normals = gl.createBuffer();
 		const vs = gl.createShader(gl.VERTEX_SHADER);
 		gl.shaderSource(vs, objectVS);
 		gl.compileShader(vs);
@@ -172,6 +150,16 @@ class MeshDrawer
 		gl.vertexAttribPointer(texturePosition, 2, gl.FLOAT, false, 0,0);
 		gl.enableVertexAttribArray(texturePosition);
 
+		var normalsPtr = gl.getAttribLocation(this.program, 'normal');
+		if(normalsPtr ===-1){
+			console.error('normal not found');
+			return;
+		}
+		gl.bindBuffer(gl.ARRAY_BUFFER, this.normals);
+		gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STATIC_DRAW);
+		gl.vertexAttribPointer(normalsPtr, 3, gl.FLOAT, false, 0, 0);
+		gl.enableVertexAttribArray(normalsPtr);
+
 		this.numTriangles = vertPos.length / 3;
 	}
 	
@@ -219,8 +207,8 @@ class MeshDrawer
 		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
-		var matrixRot = gl.getUniformLocation(this.program, 'trans');
-		gl.uniformMatrix4fv(matrixRot, false, trans);
+		var matrixRot = gl.getUniformLocation(this.program, 'mvp');
+		gl.uniformMatrix4fv(matrixRot, false, matrixMVP);
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuffer);
 		var vertexesPosition = gl.getAttribLocation(this.program, 'pos');
@@ -274,11 +262,25 @@ class MeshDrawer
 	setLightDir( x, y, z )
 	{
 		// [TO-DO] set the uniform parameter(s) of the fragment shader to specify the light direction.
+		gl.useProgram(this.program);
+		var lightDir = gl.getUniformLocation(this.program, 'lightDir');
+		if (lightDir === -1){
+			console.error('lightDir not found')
+			return;
+		}
+		gl.uniform3f(lightDir,x,y,z);
 	}
 	
 	// This method is called to set the shininess of the material
 	setShininess( shininess )
 	{
 		// [TO-DO] set the uniform parameter(s) of the fragment shader to specify the shininess.
+		gl.useProgram(this.program);
+		var shininessPtr = gl.getUniformLocation(this.program, 'shininess');
+		if(shininessPtr === -1){
+			console.error('shininess not found');
+			return;
+		}
+		gl.uniform1f(shininessPtr, shininess);
 	}
 }
