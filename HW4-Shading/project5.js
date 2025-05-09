@@ -1,4 +1,4 @@
-// This function takes the translation and two rotation angles (in radians) as input arguments.
+// This function takes the matMVPlation and two rotation angles (in radians) as input arguments.
 // The two rotations are applied around x and y axes.
 // It returns the combined 4x4 transformation matrix as an array in column-major order.
 // You can use the MatrixMult function defined in project5.html to multiply two 4x4 matrices in the same format.
@@ -35,16 +35,6 @@ function GetModelViewMatrix( translationX, translationY, translationZ, rotationX
 	var mv = MatrixMult(trans, rotation);
 	return mv;
 }
-
-async function getShader(path) {
-	var response = await fetch(path);
-	return response.text();
-}
-
-
-FRAGMENT_SHADER_PATH = "projectFS.frag";
-VERTEX_SHADER_PATH = 'projectVS.vert';
-
 // [TO-DO] Complete the implementation of the following class.
 
 class MeshDrawer
@@ -52,8 +42,65 @@ class MeshDrawer
 	// The constructor is a good place for taking care of the necessary initializations.
 	constructor()
 	{
-		var objectVS = getShader(VERTEX_SHADER_PATH);
-		var objectFS = getShader(FRAGMENT_SHADER_PATH);
+		var objectVS = `
+			attribute vec3 pos;
+			attribute vec2 texPos;
+			attribute vec3 normal;
+
+			uniform mat4 matMVP;
+			uniform mat4 swap;
+			uniform mat4 matNorm;
+			uniform mat4 matMV;
+
+			varying vec2 vTexPos;
+			varying vec3 vNormal;
+			varying vec3 vViewVec;
+
+
+			void main()
+			{
+				vTexPos = texPos;
+				vViewVec = (matMVP * matMV * swap * vec4(pos,1)).xyz; 
+				vNormal = (matMVP * swap * vec4(normal,0)).xyz;
+				gl_Position =  matMVP * swap * vec4(pos,1);
+			}
+		`
+		
+		var objectFS = `
+			precision mediump float;
+
+			uniform int uUseTexture;
+			uniform sampler2D uTexture;
+			uniform vec3 lightDir;
+			uniform float shininess;
+
+			varying vec3 vViewVec;
+			varying vec2 vTexPos;
+			varying vec3 vNormal;
+
+
+			void main()
+			{
+				const float intensity = 1.0;
+				const float baseIntensity = 0.1;
+				vec3 n = normalize(vNormal);
+				vec3 w = normalize(lightDir);
+
+				vec4 baseColor = (uUseTexture == 0) ? 
+					vec4(1,1,1,1) : 
+					texture2D(uTexture, vTexPos);
+				
+				float cosTheta = max(0.0, dot(w, n)); 
+				vec3 h = normalize(w + normalize(-vViewVec));
+				float cosPhi = max(0.0, dot(n, h));
+				vec4 lightColor = vec4(1);
+
+				vec4 baseColorComp = baseColor * cosTheta;
+				vec4 lightComp = lightColor * pow(cosPhi, shininess);
+
+				gl_FragColor = intensity * (baseColorComp + lightComp); + (baseColor*baseIntensity);
+			}
+		`
 		// [TO-DO] initializations
 		this.vertBuffer = gl.createBuffer();
 		this.texturePoss = gl.createBuffer();
@@ -91,7 +138,7 @@ class MeshDrawer
 
 		this.program = prog
 
-		var matrix = gl.getUniformLocation(prog, 'trans');
+		var matrix = gl.getUniformLocation(prog, 'matMVP');
 		var identity = [
 			1,0,0,0,
 			0,1,0,0,
@@ -207,8 +254,27 @@ class MeshDrawer
 		gl.clearColor(0.0, 0.0, 0.0, 1.0);
 		gl.clear(gl.COLOR_BUFFER_BIT);
 
-		var matrixRot = gl.getUniformLocation(this.program, 'mvp');
-		gl.uniformMatrix4fv(matrixRot, false, matrixMVP);
+		var matrixMVP_ptr = gl.getUniformLocation(this.program, 'matMVP');
+		if (matrixMVP_ptr === -1){
+			console.error("matMVP not found");
+			return;
+		}
+		gl.uniformMatrix4fv(matrixMVP_ptr, false, matrixMVP);
+
+		var matrixMV_ptr = gl.getUniformLocation(this.program, 'matMV');
+		if (matrixMV_ptr === -1){
+			console.error("matMV not found");
+			return;
+		}
+		gl.uniformMatrix4fv(matrixMV_ptr, false, matrixMV);
+
+		var normalMatrix_ptr = gl.getUniformLocation(this.program, 'matNorm');
+		if (normalMatrix_ptr === -1) {
+			console.error("matNorm not found");	
+			return;
+		}
+		gl.uniformMatrix4fv(normalMatrix_ptr, false, matrixNormal);
+		
 
 		gl.bindBuffer(gl.ARRAY_BUFFER, this.vertBuffer);
 		var vertexesPosition = gl.getAttribLocation(this.program, 'pos');
