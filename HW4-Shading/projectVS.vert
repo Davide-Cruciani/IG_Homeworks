@@ -4,8 +4,6 @@ attribute vec3 normal;
 
 uniform mat4 trans;
 uniform mat4 swap;
-uniform vec3 lightDir;
-uniform float shiness;
 
 varying vec2 vTexPos;
 varying vec3 vNormal;

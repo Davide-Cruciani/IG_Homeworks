@@ -11,20 +11,14 @@ varying vec3 vNormal;
 
 void main()
 {
-	vec4 baseColor = vec4(0);
+	vec4 baseColor = (uUseTexture == 0) ? 
+		vec4(1,gl_FragCoord.z*gl_FragCoord.z,0,1) : 
+		texture2D(uTexture, vTexPos);
 	
 	float cosTheta = dot(normalize(lightDir), normalize(vNormal)); 
 
 	//float cosPhi = dot(normalize(vNormal), normalize());
 
-	if(uUseTexture == 0)
-	{
-		baseColor = vec4(1,gl_FragCoord.z*gl_FragCoord.z,0,1);
-	}
-	else
-	{
-		baseColor = texture2D(uTexture, vTexPos);
-	}
-	
+	gl_FragColor = shininess * (baseColor * max(cosTheta,0.0));
 }
 
