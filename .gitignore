@@ -1,1 +1,3 @@
 .vscode
+.gitignore
+HW5-RayTracing/test.frag

@@ -35,18 +35,6 @@ uniform int bounceLimit;
 
 bool IntersectRay( inout HitInfo hit, Ray ray );
 
-// Shades the given point and returns the computed color.
-vec3 Shade( Material mtl, vec3 position, vec3 normal, vec3 view )
-{
-	vec3 color = vec3(0,0,0);
-	for ( int i=0; i<NUM_LIGHTS; ++i ) {
-		// TO-DO: Check for shadows
-		// TO-DO: If not shadowed, perform shading using the Blinn model
-		color += mtl.k_d * lights[i].intensity;	// change this line
-	}
-	return color;
-}
-
 // Intersects the given ray with all spheres in the scene
 // and updates the given HitInfo using the information of the sphere
 // that first intersects with the ray.
@@ -57,10 +45,63 @@ bool IntersectRay( inout HitInfo hit, Ray ray )
 	bool foundHit = false;
 	for ( int i=0; i<NUM_SPHERES; ++i ) {
 		// TO-DO: Test for ray-sphere intersection
+		float r = spheres[i].radius;
+		vec3 centre = spheres[i].center;
+		vec3 d = ray.dir;
+		vec3 p = ray.pos;
+
+		float a = dot(d,d);
+		float b = 2.0*dot(d,p-centre);
+		float c = dot(p-centre, p-centre)-pow(r,2.0);
+
+		float delta = pow(b,2.0) - 4.0*a*c;
 		// TO-DO: If intersection is found, update the given HitInfo
+		if (delta>=0.0){
+			foundHit = true;
+			float t1 = (-b-sqrt(delta))/(2.0*a);
+			float t2 = (-b+sqrt(delta))/(2.0*a);
+			
+			float t = hit.t;
+			if(t>0.001 && t1<t) t=t1;
+			if(t>0.001 && t2<t) t=t2;
+
+			if (t<hit.t){
+				hit.t = t;
+				hit.position = ray.pos + ray.dir * t;
+				hit.mtl = spheres[i].mtl;
+				hit.normal = normalize(hit.position - centre);
+			}
+		}		
 	}
 	return foundHit;
 }
+
+// Shades the given point and returns the computed color.
+vec3 Shade( Material mtl, vec3 position, vec3 normal, vec3 view )
+{
+	vec3 color = vec3(0,0,0);
+	for ( int i=0; i<NUM_LIGHTS; ++i ) {
+		// TO-DO: Check for shadows
+		vec3 vectorToLight = lights[i].position - position;
+        float lightDist = length(vectorToLight);
+		vec3 normLight = normalize(vectorToLight);
+		Ray shadowRay;
+		shadowRay.dir = normLight;
+		shadowRay.pos = position + normal * 0.001;
+		HitInfo info;
+        bool collision = IntersectRay(info, shadowRay);
+        if (collision && info.t < lightDist )
+			continue;
+		// TO-DO: If not shadowed, perform shading using the Blinn model
+		vec3 hVector = normalize(normLight + view);
+		float cosinePhi = max(0.0, dot(normal, hVector));
+		float cosineTheta = max(0.0, dot(normal, normLight));
+		color += lights[i].intensity * (mtl.k_d * cosineTheta + mtl.k_s * pow(cosinePhi, mtl.n)) + 0.1 * mtl.k_d;
+	}
+	return color;
+}
+
+
 
 // Given a ray, returns the shaded color where the ray intersects a sphere.
 // If the ray does not hit a sphere, returns the environment color.
