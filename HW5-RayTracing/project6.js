@@ -1,45 +1,49 @@
 var raytraceFS = `
+
+
 struct Ray {
 	vec3 pos;
 	vec3 dir;
-};
-
-struct Material {
-	vec3  k_d;	// diffuse coefficient
+	};
+	
+	struct Material {
+		vec3  k_d;	// diffuse coefficient
 	vec3  k_s;	// specular coefficient
 	float n;	// specular exponent
-};
+	};
+	
+	struct Sphere {
+		vec3     center;
+		float    radius;
+		Material mtl;
+		};
+		
+		struct Light {
+			vec3 position;
+			vec3 intensity;
+			};
 
-struct Sphere {
-	vec3     center;
-	float    radius;
+			struct HitInfo {
+				float    t;
+				vec3     position;
+				vec3     normal;
 	Material mtl;
-};
+	};
+	
+	uniform Sphere spheres[ NUM_SPHERES ];
+	uniform Light  lights [ NUM_LIGHTS  ];
+	uniform samplerCube envMap;
+	uniform int bounceLimit;
+	
+	float bias = 0.002;
 
-struct Light {
-	vec3 position;
-	vec3 intensity;
-};
-
-struct HitInfo {
-	float    t;
-	vec3     position;
-	vec3     normal;
-	Material mtl;
-};
-
-uniform Sphere spheres[ NUM_SPHERES ];
-uniform Light  lights [ NUM_LIGHTS  ];
-uniform samplerCube envMap;
-uniform int bounceLimit;
-
-bool IntersectRay( inout HitInfo hit, Ray ray );
-
-// Intersects the given ray with all spheres in the scene
-// and updates the given HitInfo using the information of the sphere
-// that first intersects with the ray.
-// Returns true if an intersection is found.
-bool IntersectRay( inout HitInfo hit, Ray ray )
+	bool IntersectRay( inout HitInfo hit, Ray ray );
+	
+	// Intersects the given ray with all spheres in the scene
+	// and updates the given HitInfo using the information of the sphere
+	// that first intersects with the ray.
+	// Returns true if an intersection is found.
+	bool IntersectRay( inout HitInfo hit, Ray ray )
 {
 	hit.t = 1e30;
 	bool foundHit = false;
@@ -58,12 +62,13 @@ bool IntersectRay( inout HitInfo hit, Ray ray )
 		// TO-DO: If intersection is found, update the given HitInfo
 		if (delta>=0.0){
 			foundHit = true;
-			float t1 = (-b-sqrt(delta))/(2.0*a);
-			float t2 = (-b+sqrt(delta))/(2.0*a);
+			float sDelta = sqrt(delta);
+			float t1 = (-b-sDelta)/(2.0*a);
+			float t2 = (-b+sDelta)/(2.0*a);
 			
-			float t = hit.t;
-			if(t>0.001 && t1<t) t=t1;
-			if(t>0.001 && t2<t) t=t2;
+			float t = 1e30;
+			if(t1>bias && t1<t) t=t1;
+			if(t2>bias && t2<t) t=t2;
 
 			if (t<hit.t){
 				hit.t = t;
@@ -114,18 +119,28 @@ vec4 RayTracer( Ray ray )
 		
 		// Compute reflections
 		vec3 k_s = hit.mtl.k_s;
+		vec3 lastPosition = hit.position + hit.normal*bias;
+		vec3 lastDir = normalize(2.0*dot(view, hit.normal)*hit.normal - view);
 		for ( int bounce=0; bounce<MAX_BOUNCES; ++bounce ) {
 			if ( bounce >= bounceLimit ) break;
-			if ( hit.mtl.k_s.r + hit.mtl.k_s.g + hit.mtl.k_s.b <= 0.0 ) break;
+			if ( k_s.r + k_s.g + k_s.b <= 0.0 ) break;
 			
 			Ray r;	// this is the reflection ray
 			HitInfo h;	// reflection hit info
 			
 			// TO-DO: Initialize the reflection ray
 			
+			r.pos = lastPosition;
+			r.dir = lastDir;
+
 			if ( IntersectRay( h, r ) ) {
 				// TO-DO: Hit found, so shade the hit point
+				vec3 viewDir = normalize(-r.dir);
+				clr += k_s * Shade(h.mtl, h.position, h.normal, viewDir);
 				// TO-DO: Update the loop variables for tracing the next reflection ray
+				k_s = h.mtl.k_s;
+				lastPosition = h.position + h.normal*bias;
+				lastDir = normalize(reflect(r.dir, h.normal));
 			} else {
 				// The refleciton ray did not intersect with anything,
 				// so we are using the environment color
