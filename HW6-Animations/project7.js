@@ -59,10 +59,14 @@ class MeshDrawer
 
 			void main()
 			{
+				vec4 posWorld = swap * vec4(pos, 1.0);
+				vec4 normWorld = swap * vec4(normal, 0.0);
+
 				vTexPos = texPos;
-				vViewVec = (matMVP * matMV * swap * vec4(pos,1)).xyz; 
-				vNormal = (matMVP * swap * vec4(normal,0)).xyz;
-				gl_Position =  matMVP * swap * vec4(pos,1);
+				vViewVec = -(matMV * posWorld).xyz;         // View vector in view space
+				vNormal = (matMV * normWorld).xyz;          // Normal in view space
+
+				gl_Position = matMVP * posWorld;
 			}
 		`
 		
@@ -98,7 +102,7 @@ class MeshDrawer
 				vec4 baseColorComp = baseColor * cosTheta;
 				vec4 lightComp = lightColor * pow(cosPhi, shininess);
 
-				gl_FragColor = intensity * (baseColorComp + lightComp); + (baseColor*baseIntensity);
+				gl_FragColor = intensity * (baseColorComp + lightComp) + (baseColor*baseIntensity);
 			}
 		`
 		// [TO-DO] initializations
@@ -392,9 +396,6 @@ function SimTimeStep( dt, positions, velocities, springs, stiffness, damping, pa
 		
 		currentPosition.inc(vel.mul(dt))
 		positions[i].set(currentPosition);
-		
-		console.log("P: "+positions);
-		console.log("V: "+velocities);
 	}
 
 	// [TO-DO] Handle collisions
@@ -405,9 +406,9 @@ function SimTimeStep( dt, positions, velocities, springs, stiffness, damping, pa
 		var iterVelocity = [currentVelocity.x, currentVelocity.y, currentVelocity.z]
 		for(let j=0;j<3;j++){
 			if (iterPosition[j] < -1){
-				iterPosition[j] = (iterPosition[j] + 1) * restitution;
+				iterPosition[j] = -1;
 			}else if(iterPosition[j] > 1){
-				iterPosition[j] = (iterPosition[j] - 1) * restitution;
+				iterPosition[j] = 1;
 			}else continue;
 			iterVelocity[j] = (iterVelocity[j] * -restitution);
 		}
