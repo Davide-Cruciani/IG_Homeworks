@@ -57,7 +57,7 @@ vec3 Shade( Material mtl, vec3 position, vec3 normal, vec3 view )
 		vec3 hVector = normalize(normLight + view);
 		float cosinePhi = max(0.0, dot(normal, hVector));
 		float cosineTheta = max(0.0, dot(normal, normLight));
-		color += lights[i].intensity * (mtl.k_d * cosineTheta + mtl.k_s * pow(cosinePhi, mtl.n)) + 0.1 * mtl.k_d;
+		color += lights[i].intensity * (mtl.k_d * cosineTheta + mtl.k_s * pow(cosinePhi, mtl.n)); //+ 0.1 * mtl.k_d;
 	}
 	return color;
 }
@@ -143,10 +143,10 @@ vec4 RayTracer( Ray ray )
 				clr += k_s*Shade(h.mtl, h.position, h.normal, viewDir);
 				// TO-DO: Update the loop variables for tracing the next reflection ray
 				k_s = h.mtl.k_s;
-				lastPosition = h.position + h.normal*reflectionBias;
 				lastDir = normalize(reflect(r.dir, h.normal));
+				lastPosition = h.position + h.normal * reflectionBias;
 			} else {
-				// The refleciton ray did not intersect with anything,
+				// The reflection ray did not intersect with anything,
 				// so we are using the environment color
 				clr += k_s * textureCube( envMap, r.dir.xzy ).rgb;
 				break;	// no more reflections
