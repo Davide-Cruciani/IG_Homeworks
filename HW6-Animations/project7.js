@@ -358,12 +358,40 @@ class MeshDrawer
 // It updates the given positions and velocities.
 function SimTimeStep( dt, positions, velocities, springs, stiffness, damping, particleMass, gravity, restitution )
 {
-	var forces = Array( positions.length ); // The total for per particle
-
 	// [TO-DO] Compute the total force of each particle
+	const particleCount = positions.length;
+	var forces = Array(particleCount); // The total for per particle
+	for(let i=0;i<particleCount;i++){
+		forces[i] = gravity.mul(particleMass);
+	}
+	for (let i=0;i<springs.length;i++){
+		var p0 = springs[i].p0;
+		var p1 = springs[i].p1;
+		var rest = springs[i].rest;
+		
+		deltaX = (positions[p1].sub(positions[p0])).len();
+		directionD = (positions[p1].sub(positions[p0])).div(deltaX);
+		Fs0 = directionD.mul(stiffness*(deltaX-rest));
+
+		lDot = (velocities[p1].sub(velocities[p0])).dot(directionD);
+		Fd0 = directionD.mul(damping*lDot);
+
+		forces[p0].inc(Fs0.add(Fd0));
+		forces[p1].dec(Fs0.add(Fd0));
+	}
+
 	
 	// [TO-DO] Update positions and velocities
-	
+	for(let i=0;i<particleCount;i++){
+		acceleration = forces[i].div(particleMass);
+		var pos = positions[i].copy();
+		var vel = velocities[i].copy();
+		vel.inc(acceleration.mul(dt));
+		pos.inc(vel.mul(dt))
+		positions[i].set(pos);
+		velocities[i].set(vel);
+	}
+
 	// [TO-DO] Handle collisions
 	
 }
