@@ -369,30 +369,50 @@ function SimTimeStep( dt, positions, velocities, springs, stiffness, damping, pa
 		var p1 = springs[i].p1;
 		var rest = springs[i].rest;
 		
-		deltaX = (positions[p1].sub(positions[p0])).len();
-		directionD = (positions[p1].sub(positions[p0])).div(deltaX);
-		Fs0 = directionD.mul(stiffness*(deltaX-rest));
+		var deltaX = (positions[p1].sub(positions[p0])).len();
+		var directionD = (positions[p1].sub(positions[p0])).div(deltaX);
+		var Fs0 = directionD.mul(stiffness*(deltaX-rest));
 
-		lDot = (velocities[p1].sub(velocities[p0])).dot(directionD);
-		Fd0 = directionD.mul(damping*lDot);
+		var lDot = (velocities[p1].sub(velocities[p0])).dot(directionD);
+		var Fd0 = directionD.mul(damping*lDot);
 
 		forces[p0].inc(Fs0.add(Fd0));
-		forces[p1].dec(Fs0.add(Fd0));
+		forces[p1].inc(Fs0.add(Fd0).mul(-1));
 	}
 
 	
 	// [TO-DO] Update positions and velocities
 	for(let i=0;i<particleCount;i++){
-		acceleration = forces[i].div(particleMass);
-		var pos = positions[i].copy();
+		var acceleration = forces[i].div(particleMass);
+		var currentPosition = positions[i].copy();
 		var vel = velocities[i].copy();
+		
 		vel.inc(acceleration.mul(dt));
-		pos.inc(vel.mul(dt))
-		positions[i].set(pos);
 		velocities[i].set(vel);
+		
+		currentPosition.inc(vel.mul(dt))
+		positions[i].set(currentPosition);
+		
+		console.log("P: "+positions);
+		console.log("V: "+velocities);
 	}
 
 	// [TO-DO] Handle collisions
-	
+	for(let i=0;i<particleCount;i++){
+		var currentPosition = positions[i].copy();
+		var currentVelocity = velocities[i].copy();
+		var iterPosition = [currentPosition.x, currentPosition.y, currentPosition.z];
+		var iterVelocity = [currentVelocity.x, currentVelocity.y, currentVelocity.z]
+		for(let j=0;j<3;j++){
+			if (iterPosition[j] < -1){
+				iterPosition[j] = (iterPosition[j] + 1) * restitution;
+			}else if(iterPosition[j] > 1){
+				iterPosition[j] = (iterPosition[j] - 1) * restitution;
+			}else continue;
+			iterVelocity[j] = (iterVelocity[j] * -restitution);
+		}
+		positions[i] = ToVec3(iterPosition);
+		velocities[i] = ToVec3(iterVelocity);
+	}
 }
 
