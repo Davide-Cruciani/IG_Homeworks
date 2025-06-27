@@ -1,0 +1,34 @@
+export const GameState = {
+    npcs:[],
+    bullets:[],
+    planets:[],
+    explosions:[],
+    player:null,
+    camera:null,
+    listener:null,
+    audioLoader:null,
+    cameraRecoilOffset:null,
+    gameOver:null,
+    scene:null,
+    sun:null,
+    clock:null,
+    zoom:{
+        level:2,
+        speed:0.1,
+        min:1.2,
+        max:4
+    },
+    fps:{
+        sinceLast:0,
+        frameCount:0,
+        sinceLastLog:0
+    },
+    paused:false,
+    npcUUID:0,
+    planetUUID:0,
+    timeDial:1,
+    dialActive:false,
+    score:0,
+    lastSpawn:31,
+    spawnOK:false
+}
